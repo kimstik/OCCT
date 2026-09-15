@@ -17,9 +17,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: gcc-cq
-            cc: gcc
-            cxx: g++
           - name: gcc-noexc
             cc: gcc
             cxx: g++
@@ -53,16 +50,18 @@ jobs:
             cc: gcc
             cxx: g++
             pgo: "1"
-          - name: clang-cq
-            cc: clang
-            cxx: clang++
+          - name: clang
+            cc: gcc
+            cxx: g++
+            var_cc: clang
+            var_cxx: clang++
     steps:
       - uses: actions/checkout@v4
 
       - name: Install tools
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q ninja-build ccache linux-tools-common linux-tools-generic
+          sudo apt-get install -y -q ninja-build ccache linux-tools-common linux-tools-generic clang llvm
           PERF=$(ls /usr/lib/linux-tools/*/perf 2>/dev/null | head -1)
           if [ -n "$PERF" ]; then sudo ln -sf "$PERF" /usr/local/bin/perf; fi
           perf --version || echo "no perf"
@@ -72,12 +71,15 @@ jobs:
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: perf-lab-${{ matrix.name }}
-          max-size: 2G
+          restore-keys: perf-lab-
+          max-size: 3G
 
       - name: Build and measure
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
+          VAR_CC: ${{ matrix.var_cc || matrix.cc }}
+          VAR_CXX: ${{ matrix.var_cxx || matrix.cxx }}
           MARCH: ${{ matrix.march || 'nocona' }}
           DISABLE_EXCEPTIONS: ${{ matrix.disable_exceptions || 'OFF' }}
           LTO: ${{ matrix.lto || 'TRUE' }}
@@ -94,5 +96,5 @@ jobs:
           name: perf-lab-${{ matrix.name }}
           path: |
             perf-lab/out/*.txt
-            perf-lab/out/configure.log
+            perf-lab/out/*.log
           if-no-files-found: warn
