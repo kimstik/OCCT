@@ -28,6 +28,19 @@ jobs:
             cc: gcc
             cxx: g++
             extra: "-fno-semantic-interposition"
+          - name: gcc-bsymbolic
+            cc: gcc
+            cxx: g++
+            extra_ld: "-Wl,-Bsymbolic-functions"
+          - name: gcc-nohardening
+            cc: gcc
+            cxx: g++
+            extra: "-fno-stack-protector -U_FORTIFY_SOURCE -fcf-protection=none"
+          - name: gcc-flags
+            cc: gcc
+            cxx: g++
+            extra: "-fno-semantic-interposition -fipa-pta -fdevirtualize-at-ltrans -fno-math-errno -fno-trapping-math -fno-stack-protector -U_FORTIFY_SOURCE"
+            extra_ld: "-Wl,-Bsymbolic-functions"
           - name: gcc-dim32
             cc: gcc
             cxx: g++
@@ -36,6 +49,10 @@ jobs:
             cc: gcc
             cxx: g++
             march: haswell
+          - name: gcc-pgo
+            cc: gcc
+            cxx: g++
+            pgo: "1"
           - name: clang-cq
             cc: clang
             cxx: clang++
@@ -65,7 +82,9 @@ jobs:
           DISABLE_EXCEPTIONS: ${{ matrix.disable_exceptions || 'OFF' }}
           LTO: ${{ matrix.lto || 'TRUE' }}
           EXTRA_CXXFLAGS: ${{ matrix.extra || '' }}
+          EXTRA_LDFLAGS: ${{ matrix.extra_ld || '' }}
           PATCH: ${{ matrix.patch || '' }}
+          PGO: ${{ matrix.pgo || '0' }}
         run: bash perf-lab/run.sh
 
       - name: Upload results
