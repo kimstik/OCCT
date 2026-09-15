@@ -82,21 +82,24 @@ build_programs "$SRC/install-base" base nocona ""
 CC=$VAR_CC; CXX=$VAR_CXX
 if [ -n "${PATCH:-}" ]; then bash "$SRC/perf-lab/patches/$PATCH" "$SRC"; fi
 if [ "$PGO" = 1 ]; then
+  # Both stages use the same build directory so that the profile file names
+  # (mangled object paths under -fprofile-dir) match between generate and use.
   PROF="$SRC/pgo-data"; mkdir -p "$PROF"
   PGOGEN="-fprofile-generate -fprofile-update=single -fprofile-dir=$PROF"
-  PGOUSE="-fprofile-use -fprofile-partial-training -fprofile-correction -Wno-missing-profile -fprofile-dir=$PROF"
+  PGOUSE="-fprofile-use -fprofile-partial-training -fprofile-correction -fprofile-dir=$PROF"
   case "$CXX" in clang*) PGOGEN="-fprofile-generate=$PROF"; PGOUSE="-fprofile-use=$PROF/merged.profdata";; esac
-  configure_build "$SRC/build-gen" "$SRC/install-gen" "$MARCH" "$DISABLE_EXCEPTIONS" "$LTO" "$EXTRA_CXXFLAGS $PGOGEN" "$EXTRA_LDFLAGS $PGOGEN" 0
+  configure_build "$SRC/build-var" "$SRC/install-gen" "$MARCH" "$DISABLE_EXCEPTIONS" "$LTO" "$EXTRA_CXXFLAGS $PGOGEN" "$EXTRA_LDFLAGS $PGOGEN" 0
   build_programs "$SRC/install-gen" gen "$MARCH" "$PGOGEN"
   echo "== PGO training"
   export LD_LIBRARY_PATH=$(cat "$OUT/libdir-gen")
   "$OUT/workload-gen" 2 > /dev/null; "$OUT/workload-gen" 1 mesh > /dev/null; "$OUT/workload-gen" 2 extrema > /dev/null
   unset LD_LIBRARY_PATH
   case "$CXX" in clang*) llvm-profdata merge -o "$PROF/merged.profdata" "$PROF"/*.profraw;; esac
-  du -sh "$PROF"
-  rm -rf "$SRC/build-gen" "$SRC/install-gen"
+  echo "profile files: $(find "$PROF" -name '*.gcda' -o -name '*.profraw' | wc -l), $(du -sh "$PROF" | cut -f1)"
+  rm -rf "$SRC/install-gen"
   configure_build "$SRC/build-var" "$SRC/install-var" "$MARCH" "$DISABLE_EXCEPTIONS" "$LTO" "$EXTRA_CXXFLAGS $PGOUSE" "$EXTRA_LDFLAGS $PGOUSE" 0
-  build_programs "$SRC/install-var" var "$MARCH" "$PGOUSE"
+  echo "missing-profile warnings: $(grep -c 'missing-profile' "$OUT/build-build-var.log")"
+  build_programs "$SRC/install-var" var "$MARCH" "$PGOUSE -Wno-missing-profile"
 else
   configure_build "$SRC/build-var" "$SRC/install-var" "$MARCH" "$DISABLE_EXCEPTIONS" "$LTO" "$EXTRA_CXXFLAGS" "$EXTRA_LDFLAGS" 1
   build_programs "$SRC/install-var" var "$MARCH" ""

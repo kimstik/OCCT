@@ -17,52 +17,46 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: gcc-noexc
+          - name: gcc-base
             cc: gcc
             cxx: g++
-            disable_exceptions: "ON"
-          - name: gcc-nointerpose
-            cc: gcc
-            cxx: g++
-            extra: "-fno-semantic-interposition"
-          - name: gcc-bsymbolic
-            cc: gcc
-            cxx: g++
-            extra_ld: "-Wl,-Bsymbolic-functions"
-          - name: gcc-nohardening
-            cc: gcc
-            cxx: g++
-            extra: "-fno-stack-protector -U_FORTIFY_SOURCE -fcf-protection=none"
-          - name: gcc-flags
-            cc: gcc
-            cxx: g++
-            extra: "-fno-semantic-interposition -fipa-pta -fdevirtualize-at-ltrans -fno-math-errno -fno-trapping-math -fno-stack-protector -U_FORTIFY_SOURCE"
-            extra_ld: "-Wl,-Bsymbolic-functions"
-          - name: gcc-dim32
-            cc: gcc
-            cxx: g++
-            patch: plib-dim32.sh
-          - name: gcc-epsilon
-            cc: gcc
-            cxx: g++
-            patch: epsilon-bits.sh
-          - name: gcc-nomatherrno
-            cc: gcc
-            cxx: g++
-            extra: "-fno-math-errno"
-          - name: gcc-haswell
-            cc: gcc
-            cxx: g++
-            march: haswell
           - name: gcc-pgo
             cc: gcc
             cxx: g++
             pgo: "1"
-          - name: clang
+          - name: clang-pgo
             cc: gcc
             cxx: g++
             var_cc: clang
             var_cxx: clang++
+            pgo: "1"
+          - name: gcc-combo
+            cc: gcc
+            cxx: g++
+            extra: "-fno-semantic-interposition -fno-stack-protector -U_FORTIFY_SOURCE -fcf-protection=none"
+            patch: epsilon-bits.sh
+          - name: gcc-combo-noexc
+            cc: gcc
+            cxx: g++
+            extra: "-fno-semantic-interposition -fno-stack-protector -U_FORTIFY_SOURCE -fcf-protection=none"
+            patch: epsilon-bits.sh
+            disable_exceptions: "ON"
+          - name: gcc-nostackprot
+            cc: gcc
+            cxx: g++
+            extra: "-fno-stack-protector"
+          - name: gcc-nofortify
+            cc: gcc
+            cxx: g++
+            extra: "-U_FORTIFY_SOURCE"
+          - name: gcc-nocf
+            cc: gcc
+            cxx: g++
+            extra: "-fcf-protection=none"
+          - name: gcc-nolto
+            cc: gcc
+            cxx: g++
+            lto: "FALSE"
     steps:
       - uses: actions/checkout@v4
 
