@@ -1,0 +1,79 @@
+name: perf-lab
+
+on:
+  push:
+    branches: [perf-lab]
+  workflow_dispatch:
+
+concurrency:
+  group: perf-lab-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: gcc-cq
+            cc: gcc
+            cxx: g++
+          - name: gcc-noexc
+            cc: gcc
+            cxx: g++
+            disable_exceptions: "ON"
+          - name: gcc-nointerpose
+            cc: gcc
+            cxx: g++
+            extra: "-fno-semantic-interposition"
+          - name: gcc-dim32
+            cc: gcc
+            cxx: g++
+            patch: plib-dim32.sh
+          - name: gcc-haswell
+            cc: gcc
+            cxx: g++
+            march: haswell
+          - name: clang-cq
+            cc: clang
+            cxx: clang++
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q ninja-build ccache linux-tools-common linux-tools-generic
+          PERF=$(ls /usr/lib/linux-tools/*/perf 2>/dev/null | head -1)
+          if [ -n "$PERF" ]; then sudo ln -sf "$PERF" /usr/local/bin/perf; fi
+          perf --version || echo "no perf"
+          nproc; ${{ matrix.cxx }} --version | head -1; cmake --version | head -1
+
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: perf-lab-${{ matrix.name }}
+          max-size: 2G
+
+      - name: Build and measure
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+          MARCH: ${{ matrix.march || 'nocona' }}
+          DISABLE_EXCEPTIONS: ${{ matrix.disable_exceptions || 'OFF' }}
+          LTO: ${{ matrix.lto || 'TRUE' }}
+          EXTRA_CXXFLAGS: ${{ matrix.extra || '' }}
+          PATCH: ${{ matrix.patch || '' }}
+        run: bash perf-lab/run.sh
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-lab-${{ matrix.name }}
+          path: |
+            perf-lab/out/*.txt
+            perf-lab/out/configure.log
+          if-no-files-found: warn
