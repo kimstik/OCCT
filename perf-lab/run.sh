@@ -69,8 +69,9 @@ inc_dir() { local i="$1/include/opencascade"; [ -d "$i" ] || i=$(find "$1" -name
 # build_programs <prefix> <tag> <march> <extra cxx flags>
 build_programs() {
   local inc lib; inc=$(inc_dir "$1"); lib=$(lib_dir "$1")
-  "$CXX" -std=c++17 -O2 -g -march=$3 -fno-omit-frame-pointer $4 -I"$inc" "$SRC/perf-lab/workload.cpp" -o "$OUT/workload-$2" -L"$lib" $TK -Wl,-rpath,"$lib"
-  "$CXX" -std=c++17 -O2 -g -march=$3 $4 -I"$inc" "$SRC/perf-lab/bench.cpp" -o "$OUT/bench-$2" -L"$lib" -lTKMath -lTKernel -Wl,-rpath,"$lib"
+  echo "$lib" > "$OUT/libdir-$2"
+  "$CXX" -std=c++17 -O2 -g -march=$3 -fno-omit-frame-pointer $4 -I"$inc" "$SRC/perf-lab/workload.cpp" -o "$OUT/workload-$2" -L"$lib" $TK -Wl,-rpath,"$lib" -Wl,--disable-new-dtags
+  "$CXX" -std=c++17 -O2 -g -march=$3 $4 -I"$inc" "$SRC/perf-lab/bench.cpp" -o "$OUT/bench-$2" -L"$lib" -lTKMath -lTKernel -Wl,-rpath,"$lib" -Wl,--disable-new-dtags
 }
 
 # ---------------- baseline (conda-forge configuration) ----------------
@@ -88,7 +89,9 @@ if [ "$PGO" = 1 ]; then
   configure_build "$SRC/build-gen" "$SRC/install-gen" "$MARCH" "$DISABLE_EXCEPTIONS" "$LTO" "$EXTRA_CXXFLAGS $PGOGEN" "$EXTRA_LDFLAGS $PGOGEN" 0
   build_programs "$SRC/install-gen" gen "$MARCH" "$PGOGEN"
   echo "== PGO training"
+  export LD_LIBRARY_PATH=$(cat "$OUT/libdir-gen")
   "$OUT/workload-gen" 2 > /dev/null; "$OUT/workload-gen" 1 mesh > /dev/null; "$OUT/workload-gen" 2 extrema > /dev/null
+  unset LD_LIBRARY_PATH
   case "$CXX" in clang*) llvm-profdata merge -o "$PROF/merged.profdata" "$PROF"/*.profraw;; esac
   du -sh "$PROF"
   rm -rf "$SRC/build-gen" "$SRC/install-gen"
@@ -102,19 +105,20 @@ grep -E "CMAKE_CXX_FLAGS_RELEASE|No_Exception" "$SRC/build-var/CMakeCache.txt" |
 
 CC=$BASE_CC; CXX=$BASE_CXX
 # ---------------- A/B timings, interleaved on the same machine ----------------
+run() { local v=$1; shift; LD_LIBRARY_PATH=$(cat "$OUT/libdir-$v") "$OUT/$1-$v" "${@:2}"; }
 echo "== timings (A = baseline, B = variant)"
 {
   for i in 1 2 3; do
     for v in base var; do
-      echo "### $v workload (5 reps)"; "$OUT/workload-$v" 5 | tail -12
+      echo "### $v workload (5 reps)"; run $v workload 5 | tail -12
     done
   done
   for i in 1 2 3; do
-    for v in base var; do echo "### $v mesh"; "$OUT/workload-$v" 2 mesh | tail -1; done
-    for v in base var; do echo "### $v extrema"; "$OUT/workload-$v" 5 extrema | tail -1; done
+    for v in base var; do echo "### $v mesh"; run $v workload 2 mesh | tail -1; done
+    for v in base var; do echo "### $v extrema"; run $v workload 5 extrema | tail -1; done
   done
   for i in 1 2 3; do
-    for v in base var; do echo "### $v bench"; "$OUT/bench-$v"; done
+    for v in base var; do echo "### $v bench"; run $v bench; done
   done
 } 2>&1 | tee "$OUT/timings.txt"
 

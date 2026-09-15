@@ -42,6 +42,14 @@ jobs:
             cc: gcc
             cxx: g++
             patch: plib-dim32.sh
+          - name: gcc-epsilon
+            cc: gcc
+            cxx: g++
+            patch: epsilon-bits.sh
+          - name: gcc-nomatherrno
+            cc: gcc
+            cxx: g++
+            extra: "-fno-math-errno"
           - name: gcc-haswell
             cc: gcc
             cxx: g++
