@@ -17,46 +17,36 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: gcc-base
+          - name: gcc-combo-pgo
             cc: gcc
             cxx: g++
-          - name: gcc-pgo
-            cc: gcc
-            cxx: g++
+            extra: "-fno-semantic-interposition -fno-stack-protector -U_FORTIFY_SOURCE -fcf-protection=none"
+            patch: epsilon-bits.sh
             pgo: "1"
-          - name: clang-pgo
+          - name: clang-combo
             cc: gcc
             cxx: g++
             var_cc: clang
             var_cxx: clang++
+            extra: "-fno-stack-protector -U_FORTIFY_SOURCE -fcf-protection=none"
+            patch: epsilon-bits.sh
+          - name: clang-combo-pgo
+            cc: gcc
+            cxx: g++
+            var_cc: clang
+            var_cxx: clang++
+            extra: "-fno-stack-protector -U_FORTIFY_SOURCE -fcf-protection=none"
+            patch: epsilon-bits.sh
             pgo: "1"
-          - name: gcc-combo
+          - name: clang-combo-pgo-noexc
             cc: gcc
             cxx: g++
-            extra: "-fno-semantic-interposition -fno-stack-protector -U_FORTIFY_SOURCE -fcf-protection=none"
+            var_cc: clang
+            var_cxx: clang++
+            extra: "-fno-stack-protector -U_FORTIFY_SOURCE -fcf-protection=none"
             patch: epsilon-bits.sh
-          - name: gcc-combo-noexc
-            cc: gcc
-            cxx: g++
-            extra: "-fno-semantic-interposition -fno-stack-protector -U_FORTIFY_SOURCE -fcf-protection=none"
-            patch: epsilon-bits.sh
+            pgo: "1"
             disable_exceptions: "ON"
-          - name: gcc-nostackprot
-            cc: gcc
-            cxx: g++
-            extra: "-fno-stack-protector"
-          - name: gcc-nofortify
-            cc: gcc
-            cxx: g++
-            extra: "-U_FORTIFY_SOURCE"
-          - name: gcc-nocf
-            cc: gcc
-            cxx: g++
-            extra: "-fcf-protection=none"
-          - name: gcc-nolto
-            cc: gcc
-            cxx: g++
-            lto: "FALSE"
     steps:
       - uses: actions/checkout@v4
 
